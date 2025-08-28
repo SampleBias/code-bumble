@@ -236,9 +236,33 @@ The easiest way to test and debug CodeBumble:
 ./codebumble test
 ```
 
+### Progress Indicators
+
+The test interface includes comprehensive progress tracking:
+
+**📊 Real-time Progress Bars:**
+- **📸 Screenshot**: Window detection → Image processing → OCR analysis
+- **🤖 AI Processing**: Connecting → AI thinking → Code generation → Formatting
+- **⌨️ Code Output**: Preparing → Typing code → Adding syntax → Finalizing
+- **📋 Clipboard**: Accessing system → Copying content → Complete
+
+**🎯 Visual Feedback:**
+- **Animated loading indicators** with color cycling (⚪🔵🟡🟠🔴🟣🟢)
+- **Determinate progress bars** showing exact completion percentage
+- **Indeterminate progress bars** during active processing
+- **Status messages** with real-time updates
+- **Color-coded states**: Idle (⚪), Processing (🔄), Complete (✅), Error (❌)
+
+**🧪 Testing Controls:**
+- **Enhanced test buttons** with integrated progress feedback
+- **Individual progress simulation** for each process type
+- **Combined testing** showing full workflow with progress
+- **Manual progress control** for debugging and demonstration
+
 **Features:**
 - **📱 Scrollable overlay window** that stays on top
 - **📊 Real-time status monitoring** of all components
+- **⏳ Progress bars and loading indicators** for all processes
 - **📸 Live screenshot preview** - see exactly what's being captured
 - **🤖 AI solution preview** - view generated code before pasting
 - **🔥 Tab trigger simulation** for testing activation
@@ -249,6 +273,7 @@ The easiest way to test and debug CodeBumble:
 - **🔄 Auto-refresh** screenshots and solutions
 - **📋 Copy controls** for solution management
 - **📜 Full scrolling support** (mouse wheel + keyboard)
+- **🎯 Animated loading feedback** with color-coded progress
 
 ### Status Information
 ```bash

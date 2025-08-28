@@ -38,6 +38,12 @@ class TestWindow:
         self.log_lines = []
         self.max_log_lines = 100
         
+        # Progress tracking
+        self.progress_vars = {}
+        self.loading_states = {}
+        self.animation_states = {}
+        self.progress_bars = {}
+        
         # Screenshot display
         self.screenshot_label = None
         self.last_screenshot = None
@@ -136,6 +142,9 @@ class TestWindow:
         # Status section
         self.setup_status_section(main_frame)
         
+        # Progress section
+        self.setup_progress_section(main_frame)
+        
         # Controls section
         self.setup_controls_section(main_frame)
         
@@ -152,29 +161,61 @@ class TestWindow:
         self.setup_testing_section(main_frame)
     
     def setup_status_section(self, parent):
-        """Setup status indicators"""
-        status_frame = ttk.LabelFrame(parent, text="📊 Status", padding=10)
+        """Setup status indicators with enhanced visual feedback"""
+        status_frame = ttk.LabelFrame(parent, text="📊 System Status", padding=10)
         status_frame.pack(fill='x', pady=(0, 10))
         
         # Service status
         self.status_vars['service'] = tk.StringVar(value="❌ Stopped")
-        ttk.Label(status_frame, text="Service:").grid(row=0, column=0, sticky='w')
+        ttk.Label(status_frame, text="🔧 Service:").grid(row=0, column=0, sticky='w')
         ttk.Label(status_frame, textvariable=self.status_vars['service']).grid(row=0, column=1, sticky='w', padx=(10, 0))
         
         # AI status
         self.status_vars['ai'] = tk.StringVar(value="❓ Unknown")
-        ttk.Label(status_frame, text="AI Ready:").grid(row=1, column=0, sticky='w')
+        ttk.Label(status_frame, text="🤖 AI Ready:").grid(row=1, column=0, sticky='w')
         ttk.Label(status_frame, textvariable=self.status_vars['ai']).grid(row=1, column=1, sticky='w', padx=(10, 0))
         
         # Window detection
         self.status_vars['window'] = tk.StringVar(value="🔍 Scanning...")
-        ttk.Label(status_frame, text="Coding Window:").grid(row=2, column=0, sticky='w')
+        ttk.Label(status_frame, text="🖼️ Coding Window:").grid(row=2, column=0, sticky='w')
         ttk.Label(status_frame, textvariable=self.status_vars['window']).grid(row=2, column=1, sticky='w', padx=(10, 0))
         
-        # Last trigger
-        self.status_vars['trigger'] = tk.StringVar(value="⏳ Waiting...")
-        ttk.Label(status_frame, text="Last Trigger:").grid(row=3, column=0, sticky='w')
-        ttk.Label(status_frame, textvariable=self.status_vars['trigger']).grid(row=3, column=1, sticky='w', padx=(10, 0))
+        # Initialize animation states
+        for key in ['service', 'ai', 'window']:
+            self.animation_states[key] = {"frame": 0, "active": False}
+    
+    def setup_progress_section(self, parent):
+        """Setup progress bars and loading indicators"""
+        progress_frame = ttk.LabelFrame(parent, text="⏳ Process Progress", padding=10)
+        progress_frame.pack(fill='x', pady=(0, 10))
+        
+        # Progress items with bars
+        progress_items = [
+            ("screenshot", "📸 Screenshot"),
+            ("ai_processing", "🤖 AI Processing"),
+            ("typing", "⌨️ Code Output"),
+            ("clipboard", "📋 Clipboard")
+        ]
+        
+        for i, (key, label) in enumerate(progress_items):
+            # Label with loading indicator
+            ttk.Label(progress_frame, text=label).grid(row=i, column=0, sticky='w', pady=2)
+            
+            self.loading_states[key] = tk.StringVar(value="⚪ Idle")
+            ttk.Label(progress_frame, textvariable=self.loading_states[key]).grid(row=i, column=1, sticky='w', padx=(10, 0))
+            
+            # Progress bar
+            self.progress_vars[key] = tk.DoubleVar(value=0)
+            progress_bar = ttk.Progressbar(progress_frame, variable=self.progress_vars[key], 
+                                         maximum=100, length=120, mode='determinate')
+            progress_bar.grid(row=i, column=2, sticky='ew', padx=(10, 0), pady=2)
+            self.progress_bars[key] = progress_bar
+            
+            # Initialize animation state
+            self.animation_states[key] = {"frame": 0, "active": False}
+        
+        # Configure grid weights
+        progress_frame.grid_columnconfigure(2, weight=1)
     
     def setup_controls_section(self, parent):
         """Setup control buttons"""
@@ -185,21 +226,36 @@ class TestWindow:
         button_frame = ttk.Frame(controls_frame)
         button_frame.pack(fill='x')
         
-        # Test screenshot button
+        # Test screenshot button with progress
         ttk.Button(button_frame, text="📸 Capture Screen", 
-                  command=self.test_screenshot).pack(side='left', padx=(0, 5))
+                  command=self.test_screenshot_with_progress).pack(side='left', padx=(0, 5))
         
-        # Test AI button
+        # Test AI button with progress
         ttk.Button(button_frame, text="🤖 Test AI", 
-                  command=self.test_ai).pack(side='left', padx=(0, 5))
+                  command=self.test_ai_with_progress).pack(side='left', padx=(0, 5))
         
         # Simulate tab button
         ttk.Button(button_frame, text="🔥 Simulate Tab", 
                   command=self.simulate_tab_trigger).pack(side='left')
         
-        # Second row
+        # Progress test buttons
+        ttk.Label(controls_frame, text="⏳ Progress Tests:", font=('Arial', 9, 'bold')).pack(anchor='w', pady=(10, 5))
+        
+        progress_frame = ttk.Frame(controls_frame)
+        progress_frame.pack(fill='x', pady=(0, 10))
+        
+        ttk.Button(progress_frame, text="📸 Screenshot", 
+                  command=self.simulate_screenshot_progress).pack(side='left', padx=(0, 3))
+        ttk.Button(progress_frame, text="🤖 AI Process", 
+                  command=self.simulate_ai_progress).pack(side='left', padx=(0, 3))
+        ttk.Button(progress_frame, text="⌨️ Typing", 
+                  command=self.simulate_typing_progress).pack(side='left', padx=(0, 3))
+        ttk.Button(progress_frame, text="📋 Clipboard", 
+                  command=self.simulate_clipboard_progress).pack(side='left', padx=(0, 3))
+        
+        # Control buttons
         button_frame2 = ttk.Frame(controls_frame)
-        button_frame2.pack(fill='x', pady=(5, 0))
+        button_frame2.pack(fill='x')
         
         # Clear logs
         ttk.Button(button_frame2, text="🧹 Clear Logs", 
@@ -310,6 +366,8 @@ class TestWindow:
         """Start periodic status updates"""
         self.update_status()
         self.auto_update_screenshot()
+        self.check_for_new_solution()
+        self._update_animations()
         self.root.after(2000, self.start_status_updates)  # Update every 2 seconds
     
     def update_status(self):
@@ -692,6 +750,120 @@ class TestWindow:
             self.log_lines.pop(0)
             # Remove old lines from display
             self.log_text.delete('1.0', '2.0')
+    
+    # ===== PROGRESS AND ANIMATION METHODS =====
+    
+    def set_progress(self, process: str, value: int, status: str = None):
+        """Update progress bar and status for a process"""
+        if process in self.progress_vars:
+            self.progress_vars[process].set(value)
+            
+        if process in self.loading_states and status:
+            self.loading_states[process].set(status)
+            
+        # Start animation if value > 0 and < 100
+        if process in self.animation_states:
+            self.animation_states[process]["active"] = 0 < value < 100
+    
+    def start_loading(self, process: str, message: str = "🔄 Processing..."):
+        """Start loading animation for a process"""
+        if process in self.loading_states:
+            self.loading_states[process].set(message)
+            
+        if process in self.animation_states:
+            self.animation_states[process]["active"] = True
+            
+        if process in self.progress_bars:
+            self.progress_bars[process].configure(mode='indeterminate')
+            self.progress_bars[process].start(10)  # Fast animation
+    
+    def stop_loading(self, process: str, message: str = "✅ Complete", final_value: int = 100):
+        """Stop loading animation for a process"""
+        if process in self.loading_states:
+            self.loading_states[process].set(message)
+            
+        if process in self.animation_states:
+            self.animation_states[process]["active"] = False
+            
+        if process in self.progress_bars:
+            self.progress_bars[process].stop()
+            self.progress_bars[process].configure(mode='determinate')
+            
+        if process in self.progress_vars:
+            self.progress_vars[process].set(final_value)
+    
+    def _update_animations(self):
+        """Update animated loading indicators"""
+        loading_frames = ["⚪", "🔵", "🟡", "🟠", "🔴", "🟣", "🟢"]
+        
+        for process, state in self.animation_states.items():
+            if state["active"]:
+                state["frame"] = (state["frame"] + 1) % len(loading_frames)
+                current_frame = loading_frames[state["frame"]]
+                
+                if process in self.loading_states:
+                    current_text = self.loading_states[process].get()
+                    if "🔄" in current_text:
+                        # Update just the emoji part
+                        base_text = current_text.replace("🔄", "").strip()
+                        self.loading_states[process].set(f"{current_frame} {base_text}")
+    
+    def simulate_screenshot_progress(self):
+        """Simulate screenshot capture progress"""
+        def progress():
+            self.start_loading("screenshot", "🔄 Capturing...")
+            self.set_progress("screenshot", 25, "🔄 Window Detection...")
+            self.root.after(300, lambda: self.set_progress("screenshot", 50, "🔄 Image Processing..."))
+            self.root.after(600, lambda: self.set_progress("screenshot", 75, "🔄 OCR Analysis..."))
+            self.root.after(900, lambda: self.stop_loading("screenshot", "✅ Complete"))
+        
+        threading.Thread(target=progress, daemon=True).start()
+    
+    def simulate_ai_progress(self):
+        """Simulate AI processing progress"""
+        def progress():
+            self.start_loading("ai_processing", "🔄 Connecting...")
+            self.set_progress("ai_processing", 20, "🔄 Sending Request...")
+            self.root.after(500, lambda: self.set_progress("ai_processing", 40, "🔄 AI Thinking..."))
+            self.root.after(1000, lambda: self.set_progress("ai_processing", 70, "🔄 Generating Code..."))
+            self.root.after(1500, lambda: self.set_progress("ai_processing", 90, "🔄 Formatting..."))
+            self.root.after(2000, lambda: self.stop_loading("ai_processing", "✅ Solution Ready"))
+        
+        threading.Thread(target=progress, daemon=True).start()
+    
+    def simulate_typing_progress(self):
+        """Simulate typing progress"""
+        def progress():
+            self.start_loading("typing", "🔄 Preparing...")
+            self.set_progress("typing", 30, "🔄 Typing Code...")
+            self.root.after(400, lambda: self.set_progress("typing", 60, "🔄 Adding Syntax..."))
+            self.root.after(800, lambda: self.set_progress("typing", 85, "🔄 Finalizing..."))
+            self.root.after(1200, lambda: self.stop_loading("typing", "✅ Code Typed"))
+        
+        threading.Thread(target=progress, daemon=True).start()
+    
+    def simulate_clipboard_progress(self):
+        """Simulate clipboard operation progress"""
+        def progress():
+            self.start_loading("clipboard", "🔄 Accessing...")
+            self.set_progress("clipboard", 50, "🔄 Copying...")
+            self.root.after(200, lambda: self.stop_loading("clipboard", "✅ Copied"))
+        
+        threading.Thread(target=progress, daemon=True).start()
+    
+    def test_screenshot_with_progress(self):
+        """Test screenshot with progress indicators"""
+        self.log_message("📸 Testing screenshot with progress...", "INFO")
+        self.simulate_screenshot_progress()
+        # Also call the regular screenshot function
+        threading.Timer(1.0, self.test_screenshot).start()
+    
+    def test_ai_with_progress(self):
+        """Test AI with progress indicators"""
+        self.log_message("🤖 Testing AI with progress...", "INFO")
+        self.simulate_ai_progress()
+        # Also call the regular AI function
+        threading.Timer(2.5, self.test_ai).start()
     
     def run(self):
         """Run the test window"""

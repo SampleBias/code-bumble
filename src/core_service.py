@@ -26,9 +26,11 @@ class CodeBumbleService:
         self.logger = self._setup_logging()
         
         # Component initialization
-        self.window_detector = WindowDetector(debug_mode=config.get('DEBUG_MODE', False))
-        self.text_extractor = TextExtractor(debug_mode=config.get('DEBUG_MODE', False))
-        self.ai_client = GeminiClient(config['GEMINI_API_KEY'], debug_mode=config.get('DEBUG_MODE', False))
+        # Initialize components with debug mode
+        debug_mode = config.get('DEBUG_MODE', True)  # Enable debug by default
+        self.window_detector = WindowDetector(debug_mode=debug_mode)
+        self.text_extractor = TextExtractor(debug_mode=debug_mode)
+        self.ai_client = GeminiClient(config['GEMINI_API_KEY'], debug_mode=debug_mode)
         self.keyboard_sim = KeyboardSimulator(debug_mode=config.get('DEBUG_MODE', False))
         self.input_monitor = InputMonitor(self.keyboard_sim)
         
@@ -194,29 +196,60 @@ class CodeBumbleService:
         # Capture screenshot
         screenshot = self.window_detector.capture_screen()
         if screenshot is None:
+            self.logger.warning("Failed to capture screenshot")
             return
         
-        # Detect coding interface
-        layout = self.window_detector.detect_coding_interface(screenshot)
-        if not layout:
-            # No coding interface detected
+        if self.config.get('DEBUG_MODE', False):
+            self.logger.debug(f"Screenshot captured: {screenshot.shape}")
+        
+        # Get instruction region (prefer user-selected over auto-detected)
+        instruction_region = self.window_detector.get_instruction_region(screenshot)
+        if not instruction_region:
+            # No instruction region found
             self.active_coding_window = None
+            if self.config.get('DEBUG_MODE', False):
+                self.logger.debug("No instruction region found")
             return
         
-        self.active_coding_window = layout
+        # Create a simple layout with the instruction region
+        self.active_coding_window = {
+            'instruction_panel': instruction_region,
+            'code_editor': {
+                'x': instruction_region['x'] + instruction_region['width'],
+                'y': instruction_region['y'],
+                'width': screenshot.shape[1] - (instruction_region['x'] + instruction_region['width']),
+                'height': instruction_region['height']
+            }
+        }
         
-        # Extract instruction text
-        instruction_region = layout.get('instruction_panel')
+        if self.config.get('DEBUG_MODE', False):
+            self.logger.debug(f"Using instruction region: {instruction_region}")
+        
+        # Extract instruction text from the region
         if instruction_region:
-            instruction_text = self.text_extractor.extract_text_from_region(
+            if self.config.get('DEBUG_MODE', False):
+                self.logger.debug(f"Extracting from instruction region: {instruction_region}")
+            
+            instruction_text = self.text_extractor.extract_instruction_text(
                 screenshot, instruction_region
             )
+            
+            if self.config.get('DEBUG_MODE', False):
+                self.logger.debug(f"Extracted text length: {len(instruction_text)}")
+                self.logger.debug(f"Text preview: {instruction_text[:200]}")
             
             # Check if this is a new problem
             if instruction_text != self.last_instruction_text and len(instruction_text) > 50:
                 if self.text_extractor.is_valid_coding_problem(instruction_text):
+                    self.logger.info(f"New coding problem detected: {len(instruction_text)} chars")
                     self._prepare_ai_response(instruction_text)
                     self.last_instruction_text = instruction_text
+                else:
+                    self.logger.debug("Extracted text doesn't appear to be a coding problem")
+            elif len(instruction_text) <= 50:
+                self.logger.debug(f"Extracted text too short: {len(instruction_text)} chars")
+        else:
+            self.logger.warning("No instruction panel found in layout")
     
     def _prepare_ai_response(self, instruction_text: str):
         """Prepare AI response for the detected problem"""
@@ -231,6 +264,10 @@ class CodeBumbleService:
                 instruction_text, 
                 language="python"  # Could be made configurable
             )
+            
+            # Add raw instruction text to response for display
+            if response:
+                response.raw_instruction_text = instruction_text
             
             if response and response.confidence > 0.5:
                 self.cached_ai_response = response

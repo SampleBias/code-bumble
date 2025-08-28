@@ -1,0 +1,15 @@
+{
+  "instruction_region": {
+    "x": 25,
+    "y": 14,
+    "width": 1459,
+    "height": 2209,
+    "confidence": 1.0,
+    "debug_info": "User-selected region"
+  },
+  "last_updated": "2025-08-28T16:37:59.976472",
+  "screen_resolution": {
+    "width": 3420,
+    "height": 2224
+  }
+}

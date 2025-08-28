@@ -27,9 +27,9 @@ USE_CLIPBOARD = os.getenv("USE_CLIPBOARD", "true").lower() == "true"
 AUTO_TYPE = os.getenv("AUTO_TYPE", "false").lower() == "true"
 
 # Debug settings
-DEBUG_MODE = os.getenv("DEBUG_MODE", "false").lower() == "true"
-SAVE_SCREENSHOTS = os.getenv("SAVE_SCREENSHOTS", "false").lower() == "true"
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+DEBUG_MODE = os.getenv("DEBUG_MODE", "true").lower() == "true"  # Enable debug by default
+SAVE_SCREENSHOTS = os.getenv("SAVE_SCREENSHOTS", "true").lower() == "true"  # Save screenshots by default
+LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG").upper()  # Debug logging by default
 
 # Optional paths
 TESSERACT_PATH = os.getenv("TESSERACT_PATH", "")

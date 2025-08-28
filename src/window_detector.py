@@ -27,6 +27,8 @@ class WindowDetector:
     def __init__(self, debug_mode: bool = False):
         self.debug_mode = debug_mode
         self.logger = logging.getLogger(__name__)
+        self.user_region = None
+        self.load_user_region()
         
         # Disable pyautogui failsafe for smooth operation
         pyautogui.FAILSAFE = False
@@ -46,7 +48,12 @@ class WindowDetector:
         """Capture full screen screenshot"""
         try:
             screenshot = pyautogui.screenshot()
-            return cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
+            screenshot_array = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
+            if screenshot_array is not None and screenshot_array.size > 0:
+                return screenshot_array
+            else:
+                self.logger.error("Screenshot array is empty or None")
+                return None
         except Exception as e:
             self.logger.error(f"Failed to capture screenshot: {e}")
             return None
@@ -61,23 +68,71 @@ class WindowDetector:
             
         height, width = screenshot.shape[:2]
         
-        # Look for typical coding challenge layout:
-        # - Instructions panel on right (30-50% of width)
-        # - Code editor on left (50-70% of width)
+        # Use a simpler, more reliable approach
+        # Assume typical coding challenge layout with instructions on LEFT
+        layout = self._simple_layout_detection(width, height)
         
-        # Detect text-heavy regions (likely instructions)
-        gray = cv2.cvtColor(screenshot, cv2.COLOR_BGR2GRAY)
+        if self.debug_mode:
+            self.logger.debug(f"Detected layout: {layout}")
         
-        # Find regions with high text density
-        text_regions = self._find_text_regions(gray)
+        return layout
+    
+    def _simple_layout_detection(self, width: int, height: int) -> Dict:
+        """Simple layout detection based on typical coding challenge interfaces"""
+        # Most coding challenges have instructions on the left (30-50% width)
+        # and code editor on the right (50-70% width)
         
-        # Analyze layout to identify instruction panel vs code editor
-        layout = self._analyze_layout(text_regions, width, height)
+        instruction_width = int(width * 0.4)  # 40% of screen width
+        editor_width = width - instruction_width
         
-        if layout and self._validate_coding_layout(layout):
-            return layout
+        layout = {
+            'instruction_panel': {
+                'x': 0,
+                'y': 0,
+                'width': instruction_width,
+                'height': height,
+                'confidence': 0.8,
+                'debug_info': 'Simple left-side detection'
+            },
+            'code_editor': {
+                'x': instruction_width,
+                'y': 0,
+                'width': editor_width,
+                'height': height,
+                'confidence': 0.8,
+                'debug_info': 'Simple right-side detection'
+            }
+        }
+        
+        return layout
+    
+    def load_user_region(self):
+        """Load user-selected region from configuration"""
+        try:
+            import json
+            import os
             
-        return None
+            config_file = 'region_config.json'
+            if os.path.exists(config_file):
+                with open(config_file, 'r') as f:
+                    config = json.load(f)
+                    self.user_region = config.get('instruction_region')
+                    if self.user_region:
+                        self.logger.info(f"Loaded user region: {self.user_region}")
+            else:
+                self.logger.info("No user region configuration found")
+        except Exception as e:
+            self.logger.error(f"Error loading user region: {e}")
+    
+    def get_instruction_region(self, screenshot: np.ndarray) -> Optional[Dict]:
+        """Get instruction region - prefer user-selected over auto-detected"""
+        if self.user_region:
+            # Use user-selected region
+            return self.user_region
+        else:
+            # Fall back to auto-detection
+            layout = self.detect_coding_interface(screenshot)
+            return layout.get('instruction_panel') if layout else None
     
     def _find_text_regions(self, gray_image: np.ndarray) -> List[WindowRegion]:
         """Find regions with high text density"""
@@ -130,13 +185,13 @@ class WindowDetector:
         # Sort regions by x position (left to right)
         text_regions.sort(key=lambda r: r.x)
         
-        # Look for typical coding challenge layout
+        # Look for typical coding challenge layout with instructions on LEFT
         for i, region in enumerate(text_regions):
-            # Check if this could be an instruction panel (usually on right)
-            if region.x > width * 0.4:  # Right side of screen
-                # Look for code editor region on the left
-                for other_region in text_regions[:i]:
-                    if other_region.x < width * 0.6 and other_region.width > width * 0.3:
+            # Check if this could be an instruction panel (on LEFT side)
+            if region.x < width * 0.6:  # Left side of screen
+                # Look for code editor region on the right
+                for other_region in text_regions[i+1:]:
+                    if other_region.x > width * 0.4 and other_region.width > width * 0.3:
                         return {
                             'instruction_panel': {
                                 'x': region.x,
@@ -165,8 +220,8 @@ class WindowDetector:
         if not instruction or not editor:
             return False
         
-        # Instruction panel should be on the right side
-        if instruction['x'] <= editor['x']:
+        # Instruction panel should be on the LEFT side
+        if instruction['x'] >= editor['x']:
             return False
         
         # Both regions should have reasonable confidence

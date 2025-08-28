@@ -248,8 +248,8 @@ def start_test_mode(config: dict, no_window: bool = False):
 def main():
     """Main entry point"""
     parser = argparse.ArgumentParser(description='CodeBumble Background Coding Assistant')
-    parser.add_argument('command', choices=['start', 'stop', 'restart', 'status', 'foreground', 'test'],
-                       help='Daemon command')
+    parser.add_argument('command', choices=['start', 'stop', 'restart', 'status', 'foreground', 'test', 'configure'],
+                        help='Daemon command')
     parser.add_argument('--pid-file', default='/tmp/codebumble.pid',
                        help='PID file path (default: /tmp/codebumble.pid)')
     parser.add_argument('--config-file', default='config.py',
@@ -283,6 +283,30 @@ def main():
     
     elif args.command == 'test':
         start_test_mode(config, args.no_window)
+    
+    elif args.command == 'configure':
+        start_region_configuration()
+
+def start_region_configuration():
+    """Start the region configuration tool"""
+    print("🔧 Starting CodeBumble Region Configuration...")
+    
+    try:
+        from src.region_selector import RegionSelector
+        
+        selector = RegionSelector()
+        selected_region = selector.show_selector()
+        
+        if selected_region:
+            print(f"✅ Region configured successfully: {selected_region}")
+            print("The selected region will be used for instruction text extraction.")
+        else:
+            print("❌ No region selected. Using default auto-detection.")
+            
+    except Exception as e:
+        print(f"❌ Configuration error: {e}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == '__main__':
     main()

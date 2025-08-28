@@ -19,6 +19,10 @@ class CodeResponse:
     explanation: str
     confidence: float
     execution_time: float
+    reasoning: str  # AI's step-by-step reasoning
+    problem_analysis: str  # Analysis of the problem
+    approach: str  # Solution approach taken
+    raw_response: str  # Complete raw response from AI
 
 class GeminiClient:
     """Client for interacting with Gemini Flash 2.5 Pro API"""
@@ -80,34 +84,58 @@ class GeminiClient:
             return None
     
     def _build_code_generation_prompt(self, problem_text: str, language: str) -> str:
-        """Build optimized prompt for code generation"""
+        """Build optimized prompt for code generation with reasoning"""
         prompt = f"""
-You are an expert programmer solving coding challenges. Analyze the following problem and provide a complete, working solution.
+You are an expert programmer solving coding challenges. Analyze the following problem and provide a complete, working solution with detailed reasoning.
 
 PROBLEM:
 {problem_text}
 
 REQUIREMENTS:
-1. Write clean, efficient code in {language}
-2. Include proper variable names and comments
-3. Handle edge cases appropriately
-4. Optimize for readability and performance
-5. Provide ONLY the code solution, no explanation unless asked
+1. First, analyze the problem step by step
+2. Explain your approach and reasoning
+3. Write clean, efficient code in {language}
+4. Include proper variable names and comments
+5. Handle edge cases appropriately
+6. Optimize for readability and performance
+
+RESPONSE FORMAT:
+Please structure your response as follows:
+
+ANALYSIS:
+[Your step-by-step analysis of the problem]
+
+APPROACH:
+[Your solution approach and algorithm choice]
+
+REASONING:
+[Your detailed reasoning for the solution]
+
+SOLUTION:
+[Your complete code solution]
 
 IMPORTANT: 
-- Return only the executable code
-- Do not include markdown formatting or code blocks
-- Start directly with the code
+- Provide detailed reasoning for accuracy verification
 - Use proper indentation for {language}
+- Include comments explaining key parts of the solution
 
-Solution:"""
+Please provide your complete analysis and solution:"""
         
         return prompt
     
     def _parse_code_response(self, response_text: str, language: str, execution_time: float) -> CodeResponse:
-        """Parse the AI response into structured format"""
-        # Clean the response
-        code = self._clean_code_response(response_text)
+        """Parse the AI response into structured format with reasoning"""
+        # Store raw response
+        raw_response = response_text
+        
+        # Extract different sections
+        analysis = self._extract_section(response_text, "ANALYSIS:")
+        approach = self._extract_section(response_text, "APPROACH:")
+        reasoning = self._extract_section(response_text, "REASONING:")
+        solution = self._extract_section(response_text, "SOLUTION:")
+        
+        # Clean the code solution
+        code = self._clean_code_response(solution if solution else response_text)
         
         # Extract explanation if present
         explanation = ""
@@ -128,7 +156,11 @@ Solution:"""
             language=language,
             explanation=explanation,
             confidence=confidence,
-            execution_time=execution_time
+            execution_time=execution_time,
+            reasoning=reasoning,
+            problem_analysis=analysis,
+            approach=approach,
+            raw_response=raw_response
         )
     
     def _clean_code_response(self, response_text: str) -> str:
@@ -190,6 +222,33 @@ Solution:"""
             confidence *= 0.6
         
         return max(0.1, min(1.0, confidence))
+    
+    def _extract_section(self, text: str, section_name: str) -> str:
+        """Extract a specific section from the response text"""
+        try:
+            if section_name not in text:
+                return ""
+            
+            # Find the start of the section
+            start_idx = text.find(section_name) + len(section_name)
+            
+            # Find the next section or end of text
+            next_sections = ["ANALYSIS:", "APPROACH:", "REASONING:", "SOLUTION:"]
+            end_idx = len(text)
+            
+            for next_section in next_sections:
+                if next_section in text[start_idx:]:
+                    next_idx = text.find(next_section, start_idx)
+                    if next_idx < end_idx:
+                        end_idx = next_idx
+            
+            # Extract and clean the section
+            section_text = text[start_idx:end_idx].strip()
+            return section_text
+            
+        except Exception as e:
+            self.logger.error(f"Failed to extract section {section_name}: {e}")
+            return ""
     
     def _generate_cache_key(self, problem_text: str, language: str) -> str:
         """Generate cache key for the request"""

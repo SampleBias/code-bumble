@@ -20,6 +20,11 @@ WINDOW_DETECTION_THRESHOLD = float(os.getenv("WINDOW_DETECTION_THRESHOLD", "0.8"
 # Stealth settings
 MAX_TYPING_SESSIONS_PER_HOUR = int(os.getenv("MAX_TYPING_SESSIONS_PER_HOUR", "5"))
 IDLE_TIME_BEFORE_ACTIVATION = float(os.getenv("IDLE_TIME_BEFORE_ACTIVATION", "3.0"))
+TAB_TRIGGER_DELAY = float(os.getenv("TAB_TRIGGER_DELAY", "1.0"))
+
+# Output method settings
+USE_CLIPBOARD = os.getenv("USE_CLIPBOARD", "true").lower() == "true"
+AUTO_TYPE = os.getenv("AUTO_TYPE", "false").lower() == "true"
 
 # Debug settings
 DEBUG_MODE = os.getenv("DEBUG_MODE", "false").lower() == "true"

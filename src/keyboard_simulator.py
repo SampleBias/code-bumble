@@ -14,6 +14,7 @@ import logging
 from typing import Optional, Callable, List, Dict
 from dataclasses import dataclass
 import queue
+import pyperclip
 
 @dataclass
 class TypingPattern:
@@ -96,9 +97,18 @@ class KeyboardSimulator:
             return
         
         try:
-            # Check if user is starting to type in code editor
+            # Check for Tab key - this is the activation trigger
+            if key == Key.tab:
+                # Tab pressed - trigger AI assistance
+                if self.typing_detection_callback:
+                    self.typing_detection_callback("tab_triggered")
+                    self.logger.info("🔥 Tab key detected - AI assistance activated!")
+                    print("🎯 CodeBumble: Tab detected - AI assistance starting...")  # Visual feedback
+                return
+            
+            # Also support typing detection as backup
             if hasattr(key, 'char') and key.char and key.char.isalnum():
-                # User started typing - trigger AI assistance
+                # User started typing - trigger AI assistance (secondary trigger)
                 if self.typing_detection_callback:
                     self.typing_detection_callback("typing_started")
             
@@ -248,6 +258,33 @@ class KeyboardSimulator:
             error_rate=error_rate
         )
         self.logger.info("Custom typing pattern applied")
+    
+    def copy_to_clipboard(self, text: str) -> bool:
+        """Copy text to system clipboard"""
+        try:
+            pyperclip.copy(text)
+            self.logger.info(f"📋 Copied {len(text)} characters to clipboard")
+            return True
+        except Exception as e:
+            self.logger.error(f"❌ Failed to copy to clipboard: {e}")
+            return False
+    
+    def get_clipboard_content(self) -> str:
+        """Get current clipboard content"""
+        try:
+            content = pyperclip.paste()
+            return content
+        except Exception as e:
+            self.logger.error(f"❌ Failed to read clipboard: {e}")
+            return ""
+    
+    def copy_and_notify(self, text: str) -> bool:
+        """Copy text to clipboard with user notification"""
+        success = self.copy_to_clipboard(text)
+        if success:
+            self.logger.info("🎯 Solution copied! Press Cmd+V (Mac) or Ctrl+V (Windows/Linux) to paste")
+            print("🎯 CodeBumble: Solution copied to clipboard! Press Cmd+V to paste.")
+        return success
     
     def emergency_stop(self):
         """Emergency stop of all typing activities"""

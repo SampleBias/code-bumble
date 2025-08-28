@@ -172,15 +172,46 @@ journalctl --user -u codebumble.service -f
 - Generates optimized code solutions
 - Caches responses for immediate delivery
 
-### 4. Human Simulation
-- Monitors for user typing initiation
-- Simulates natural keystroke patterns
-- Includes realistic pauses, errors, and corrections
+### 4. Activation System
+- **🔥 Tab Key Trigger**: Press Tab in code editor for instant activation
+- **Typing Detection**: Backup activation when you start typing
+- **Fast Response**: 1-second delay for Tab, 3-second for typing
+- **Visual Feedback**: Shows when activation is detected
 
-### 5. Stealth Operation
+### 5. Human Simulation
+- Simulates natural keystroke patterns with realistic timing
+- Includes realistic pauses, errors, and corrections
+- Variable typing speeds and word breaks for authenticity
+
+### 6. Stealth Operation
 - Limits resource usage to avoid detection
 - Randomizes behavior patterns
 - Operates within rate limits
+
+## 🚀 Quick Usage Guide
+
+### **Step 1: Start CodeBumble**
+```bash
+./codebumble start      # Background service
+./codebumble foreground # Foreground for testing  
+./codebumble test       # Test mode with GUI window
+```
+
+### **Step 2: Open a Coding Challenge**
+- Visit LeetCode, HackerRank, CodeSignal, etc.
+- Open any coding problem with a split layout
+- Click in the code editor area
+
+### **Step 3: Activate AI Assistance**
+- **🔥 Press Tab key** for instant activation (recommended)
+- **OR** start typing normally (backup method)
+- Watch for "Tab detected" message in logs
+
+### **Step 4: Get Your Solution**
+- **📋 Default: Clipboard Mode** - Solution copied to clipboard
+- **Press Cmd+V (Mac) or Ctrl+V** to paste when ready
+- **⌨️ Optional: Auto-typing Mode** - Types solution automatically
+- **🎯 User Control** - You decide when to paste the solution
 
 ## 🛡️ Security & Stealth
 
@@ -198,10 +229,37 @@ journalctl --user -u codebumble.service -f
 
 ## 📊 Monitoring & Debugging
 
+### **🧪 Test Mode (Recommended)**
+The easiest way to test and debug CodeBumble:
+
+```bash
+./codebumble test
+```
+
+**Features:**
+- **📱 Scrollable overlay window** that stays on top
+- **📊 Real-time status monitoring** of all components
+- **📸 Live screenshot preview** - see exactly what's being captured
+- **🤖 AI solution preview** - view generated code before pasting
+- **🔥 Tab trigger simulation** for testing activation
+- **🤖 AI connectivity testing** to check Gemini API
+- **⌨️ Code typing simulation** for testing output
+- **📝 Live log display** with color-coded messages
+- **👻 Adjustable transparency** (50% - 90% opacity)
+- **🔄 Auto-refresh** screenshots and solutions
+- **📋 Copy controls** for solution management
+- **📜 Full scrolling support** (mouse wheel + keyboard)
+
 ### Status Information
 ```bash
 # Check detailed status
 ./codebumble status
+
+# Test mode with GUI
+./codebumble test
+
+# Test mode without GUI
+./codebumble test --no-window
 
 # View logs (Linux)
 journalctl --user -u codebumble.service
@@ -255,6 +313,17 @@ python3 -c "from src.window_detector import WindowDetector; w=WindowDetector(Tru
 ```
 
 ## 🔧 Advanced Configuration
+
+### Output Method Configuration
+```bash
+# Clipboard mode (recommended - user controls when to paste)
+USE_CLIPBOARD=true
+AUTO_TYPE=false
+
+# Auto-typing mode (automatic typing simulation)
+USE_CLIPBOARD=false
+AUTO_TYPE=true
+```
 
 ### Custom Typing Patterns
 ```python

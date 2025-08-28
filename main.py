@@ -9,6 +9,7 @@ import sys
 import argparse
 import signal
 import time
+import threading
 from pathlib import Path
 
 # Add src to path
@@ -18,7 +19,7 @@ from src.core_service import CodeBumbleService
 
 def load_config():
     """Load configuration from config.py"""
-    config = {}
+    config_dict = {}
     
     try:
         # Try to import config.py
@@ -27,18 +28,18 @@ def load_config():
         # Extract configuration variables
         for attr in dir(config):
             if not attr.startswith('_'):
-                config[attr] = getattr(config, attr)
+                config_dict[attr] = getattr(config, attr)
                 
     except ImportError:
         print("Error: config.py not found. Please copy config.example.py to config.py and configure it.")
         sys.exit(1)
     
     # Validate required configuration
-    if not config.get('GEMINI_API_KEY') or config.get('GEMINI_API_KEY') == 'your_gemini_api_key_here':
+    if not config_dict.get('GEMINI_API_KEY') or config_dict.get('GEMINI_API_KEY') == 'your_gemini_api_key_here':
         print("Error: Please set a valid GEMINI_API_KEY in config.py")
         sys.exit(1)
     
-    return config
+    return config_dict
 
 def create_pid_file(pid_file_path: str):
     """Create PID file for daemon management"""
@@ -198,15 +199,63 @@ def status_daemon(pid_file_path: str):
     else:
         print("CodeBumble daemon is not running")
 
+def start_test_mode(config: dict, no_window: bool = False):
+    """Start test mode with optional GUI window"""
+    print("🧪 Starting CodeBumble Test Mode...")
+    
+    try:
+        # Create service instance
+        service = CodeBumbleService(config)
+        
+        if no_window:
+            # Run without GUI
+            print("🔧 Running in console test mode")
+            service.start()
+            
+            # Keep running until interrupted
+            try:
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                print("\n🛑 Test mode interrupted")
+                service.stop()
+        else:
+            # Run with GUI window
+            print("🖥️  Starting with test window...")
+            
+            # Import test window
+            from src.test_window import create_test_window
+            
+            # Start service in background thread
+            service_thread = threading.Thread(target=service.start, daemon=True)
+            service_thread.start()
+            
+            # Give service time to initialize
+            time.sleep(2)
+            
+            # Create and run test window
+            test_window = create_test_window(service)
+            test_window.run()
+            
+            # Cleanup when window closes
+            service.stop()
+            
+    except Exception as e:
+        print(f"❌ Test mode error: {e}")
+        import traceback
+        traceback.print_exc()
+
 def main():
     """Main entry point"""
     parser = argparse.ArgumentParser(description='CodeBumble Background Coding Assistant')
-    parser.add_argument('command', choices=['start', 'stop', 'restart', 'status', 'foreground'],
+    parser.add_argument('command', choices=['start', 'stop', 'restart', 'status', 'foreground', 'test'],
                        help='Daemon command')
     parser.add_argument('--pid-file', default='/tmp/codebumble.pid',
                        help='PID file path (default: /tmp/codebumble.pid)')
     parser.add_argument('--config-file', default='config.py',
                        help='Configuration file path (default: config.py)')
+    parser.add_argument('--no-window', action='store_true',
+                       help='Run test mode without GUI window')
     
     args = parser.parse_args()
     
@@ -231,6 +280,9 @@ def main():
     
     elif args.command == 'foreground':
         start_daemon(config, daemon_mode=False, pid_file_path=None)
+    
+    elif args.command == 'test':
+        start_test_mode(config, args.no_window)
 
 if __name__ == '__main__':
     main()

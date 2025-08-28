@@ -244,7 +244,11 @@ class CodeBumbleService:
     
     def _on_user_input_detected(self, input_type: str):
         """Handle user input detection"""
-        if input_type == "typing_started" and self._can_start_typing_session():
+        if input_type in ["tab_triggered", "typing_started"] and self._can_start_typing_session():
+            if input_type == "tab_triggered":
+                self.logger.info("🎯 Tab trigger detected - starting AI assistance session")
+            # Store trigger type for timing adjustments
+            self._last_trigger_type = input_type
             self.input_monitor.start_typing_session()
     
     def _on_typing_session_start(self):
@@ -278,23 +282,54 @@ class CodeBumbleService:
         """Execute the typing session"""
         try:
             # Small delay to ensure user has stopped typing
-            time.sleep(self.config.get('IDLE_TIME_BEFORE_ACTIVATION', 3.0))
+            # Shorter delay for tab-triggered sessions
+            if hasattr(self, '_last_trigger_type') and self._last_trigger_type == "tab_triggered":
+                delay = self.config.get('TAB_TRIGGER_DELAY', 1.0)
+                self.logger.info(f"⚡ Tab trigger - using fast activation ({delay}s delay)")
+            else:
+                delay = self.config.get('IDLE_TIME_BEFORE_ACTIVATION', 3.0)
+                self.logger.info(f"⏳ Standard activation delay ({delay}s)")
+            
+            time.sleep(delay)
             
             if self.cached_ai_response:
-                success = self.keyboard_sim.type_text_naturally(
-                    self.cached_ai_response.code,
-                    target_x=input_location[0],
-                    target_y=input_location[1]
-                )
-                
-                if success:
-                    self.session_stats['sessions_started'] += 1
-                    self.session_stats['characters_typed'] += len(self.cached_ai_response.code)
-                    self.typing_sessions_this_hour += 1
+                # Check if clipboard mode is enabled
+                if self.config.get('USE_CLIPBOARD', True):
+                    # Copy to clipboard mode
+                    success = self.keyboard_sim.copy_and_notify(self.cached_ai_response.code)
+                    if success:
+                        self.session_stats['sessions_started'] += 1
+                        self.session_stats['characters_typed'] += len(self.cached_ai_response.code)
+                        self.typing_sessions_this_hour += 1
+                        self.logger.info("📋 Solution copied to clipboard successfully")
+                    else:
+                        self.logger.error("❌ Failed to copy solution to clipboard")
+                        
+                elif self.config.get('AUTO_TYPE', False):
+                    # Auto-typing mode (original behavior)
+                    success = self.keyboard_sim.type_text_naturally(
+                        self.cached_ai_response.code,
+                        target_x=input_location[0],
+                        target_y=input_location[1]
+                    )
                     
-                    self.logger.info("Typing session completed successfully")
+                    if success:
+                        self.session_stats['sessions_started'] += 1
+                        self.session_stats['characters_typed'] += len(self.cached_ai_response.code)
+                        self.typing_sessions_this_hour += 1
+                        self.logger.info("⌨️ Auto-typing session completed successfully")
+                    else:
+                        self.logger.error("❌ Auto-typing session failed")
                 else:
-                    self.logger.error("Typing session failed")
+                    # Default to clipboard if neither is explicitly enabled
+                    success = self.keyboard_sim.copy_and_notify(self.cached_ai_response.code)
+                    if success:
+                        self.session_stats['sessions_started'] += 1
+                        self.session_stats['characters_typed'] += len(self.cached_ai_response.code)
+                        self.typing_sessions_this_hour += 1
+                        self.logger.info("📋 Solution copied to clipboard (default mode)")
+                    else:
+                        self.logger.error("❌ Failed to copy solution to clipboard")
         
         except Exception as e:
             self.logger.error(f"Error during typing session: {e}")
